@@ -13,32 +13,35 @@ function do_list() {
 
 function load_average(args) {
 	if (args == "conf") {
-		mpr("graph_title Load average");
-		mpr("graph_args --base 1000 -l 0");
-        	mpr("graph_vlabel load");
-		mpr("graph_scale no");
-		mpr("graph_category system");
-        	mpr("load.label load");
-        	mpr("graph_info The load average of the machine describes how many processes are in the run-queue (scheduled to run \"immediately\").");
-		mpr("load.info 5 minute load average");
-		return;
+		mpr("graph_title Load average")
+		mpr("graph_args --base 1000 -l 0")
+        	mpr("graph_vlabel load")
+		mpr("graph_scale no")
+		mpr("graph_category system")
+        	mpr("load.label load")
+        	mpr("graph_info The load average of the machine describes how many processes are in the run-queue (scheduled to run \"immediately\").")
+		mpr("load.info 5 minute load average")
+		return
 	} else {
 		getline <"/proc/loadavg"
 		mpr("load.value " $2)
-		close("/proc/loadavg");
+		close("/proc/loadavg")
 		return
 	}
 }
 
 function debug_input() {
 	for (i=0; i<=NF; i++) {
-		print "$" i "(length:" length($i) "): \"" $i "\"";
+		print "$" i "(length:" length($i) "): \"" $i "\""
 	}
 }
 BEGIN {
+	if (debug>0) {
+		LINT=1
+	}
 	# Configuration from commandline (-v port=foo)
 	if (port == "") {
-		port = "4919";
+		port = "4919"
 	}
 	if (hostname == "") {
 		"uname -n" | getline hostname
@@ -47,14 +50,14 @@ BEGIN {
 		domain = ".awk"
 	}
 
-	Service = "/inet/tcp/" port "/0/0";
+	Service = "/inet/tcp/" port "/0/0"
 	if (debug > 1) {
 		print "Listening socket: " Service
 	}
 	do {
 		mpr("# munin node at " hostname domain)
 		while ((Service |& getline)>0) {
-			gsub("[\r]*","");
+			gsub("[\r]*","")
 			if (debug > 1) {
 				print "got: "$0
 				if (debug>3) {
@@ -62,24 +65,24 @@ BEGIN {
 				}
 			}
 			if (/^quit/) {
-				mpr("# bye!");
-				break;
+				mpr("# bye!")
+				break
 			} else if (/^list/) {
 				do_list()
 			} else if (/^config /) {
 				if ($2 == "load")
-					load_average("conf");
-				mpr(".");
+					load_average("conf")
+				mpr(".")
 			} else if (/^fetch /) {
 				if ($2 == "load")
-					load_average();
-				mpr(".");
+					load_average()
+				mpr(".")
 			} else if (/^version/) {
 				mpr("munin node on " hostname domain " version: munin-node-awk")
 			} else {
-				mpr("# unknown command");
+				mpr("# unknown command")
 			}
-		};
-		close(Service);
-	} while(1);
+		}
+		close(Service)
+	} while(1)
 }
