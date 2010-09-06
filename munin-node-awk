@@ -11,7 +11,7 @@ function do_list() {
 	mpr("load")
 }
 
-function load_average(args) {
+function plugin_load(args) {
 	if (args == "conf") {
 		mpr("graph_title Load average")
 		mpr("graph_args --base 1000 -l 0")
@@ -35,6 +35,46 @@ function debug_input() {
 		print "$" i "(length:" length($i) "): \"" $i "\""
 	}
 }
+
+function handle_command() {
+	if (debug > 1) {
+		print "got: "$0
+		if (debug>3) {
+			debug_input()
+		}
+	}
+	if (/^quit/) {
+		mpr("# bye!")
+		return -1
+	} else if (/^list/) {
+		do_list()
+	} else if (/^config /) {
+		switch ($2) {
+			case "load":
+				 plugin_load("conf")
+				 break
+			default:
+				 mpr("# No such plugin")
+				 break
+		}
+		mpr(".")
+	} else if (/^fetch /) {
+		switch ($2) {
+			case "load":
+				 plugin_load()
+				 break
+			default:
+				mpr("# No such plugin")
+				break
+		}
+		mpr(".")
+	} else if (/^version/) {
+		mpr("munin node on " hostname domain " version: munin-node-awk")
+	} else {
+		mpr("# unknown command")
+	}
+}
+
 BEGIN {
 	if (debug>0) {
 		LINT=1
@@ -57,31 +97,10 @@ BEGIN {
 	do {
 		mpr("# munin node at " hostname domain)
 		while ((Service |& getline)>0) {
+			# Clean the input first
 			gsub("[\r]*","")
-			if (debug > 1) {
-				print "got: "$0
-				if (debug>3) {
-					debug_input()
-				}
-			}
-			if (/^quit/) {
-				mpr("# bye!")
-				break
-			} else if (/^list/) {
-				do_list()
-			} else if (/^config /) {
-				if ($2 == "load")
-					load_average("conf")
-				mpr(".")
-			} else if (/^fetch /) {
-				if ($2 == "load")
-					load_average()
-				mpr(".")
-			} else if (/^version/) {
-				mpr("munin node on " hostname domain " version: munin-node-awk")
-			} else {
-				mpr("# unknown command")
-			}
+			if (handle_command() <0)
+				break;
 		}
 		close(Service)
 	} while(1)
