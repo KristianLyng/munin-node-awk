@@ -8,11 +8,11 @@ function mpr(content) {
 }
 
 function do_list() {
-	mpr("load")
+	mpr("load cpu")
 }
 
 function plugin_load(args) {
-	if (args == "conf") {
+	if (args == "config") {
 		mpr("graph_title Load average")
 		mpr("graph_args --base 1000 -l 0")
         	mpr("graph_vlabel load")
@@ -28,6 +28,104 @@ function plugin_load(args) {
 		close("/proc/loadavg")
 		return
 	}
+}
+
+# Calculate the number of CPUs and cache the result
+function lib_get_cpus() {
+	if (cpus > 0) {
+		if (debug>0)
+			print "cpus cached!"
+		return;
+	}
+	cpus = 0	
+	while(getline stats <"/proc/stat") {
+		if (stats ~ "^cpu[0-9]") {
+			cpus++
+		}
+	}
+	close("/proc/stat")
+	if (debug>0)
+		print "CPUS calculated: " cpus
+	hz=100
+}
+
+function plugin_cpu(args) {
+
+	# Mostly copy/pasted from the cpu-plugin, with "author unknown" and
+	# gplv2. I don't really consider it big enough for that to matter,
+	# though.
+	
+	lib_get_cpus()
+	if (args == "config") {
+
+		graphlimit = cpus * 100
+		mpr("graph_title CPU usage")
+		mpr("graph_order system user nice idle" $extinfo)
+		mpr("graph_args --base 1000 -r --lower-limit 0 --upper-limit " graphlimit)
+		mpr("graph_vlabel %")
+		mpr("graph_scale no")
+		mpr("graph_info This graph shows how CPU time is spent.")
+		mpr("graph_category system")
+		mpr("graph_period second")
+		mpr("system.label system")
+		mpr("system.draw AREA")
+		mpr("system.min 0")
+		mpr("system.type DERIVE")
+		mpr("system.info CPU time spent by the kernel in system activities")
+		mpr("user.label user")
+		mpr("user.draw STACK")
+		mpr("user.min 0")
+		mpr("user.type DERIVE")
+		mpr("user.info CPU time spent by normal programs and daemons")
+		mpr("nice.label nice")
+		mpr("nice.draw STACK")
+		mpr("nice.min 0")
+		mpr("nice.type DERIVE")
+		mpr("nice.info CPU time spent by nice(1)d programs")
+		mpr("idle.label idle")
+		mpr("idle.draw STACK")
+		mpr("idle.min 0")
+		mpr("idle.type DERIVE")
+		mpr("idle.info Idle CPU time")
+		mpr("iowait.label iowait")
+		mpr("iowait.draw STACK")
+		mpr("iowait.min 0")
+		mpr("iowait.type DERIVE")
+		mpr("iowait.info CPU time spent waiting for I/O operations to finish when there is nothing else to do.")
+		mpr("irq.label irq")
+		mpr("irq.draw STACK")
+		mpr("irq.min 0")
+		mpr("irq.type DERIVE")
+		mpr("irq.info CPU time spent handling interrupts")
+		mpr("softirq.label softirq")
+		mpr("softirq.draw STACK")
+		mpr("softirq.min 0")
+		mpr("softirq.type DERIVE")
+		mpr("softirq.info CPU time spent handling \"batched\" interrupts")
+                mpr("steal.label steal")
+                mpr("steal.draw STACK")
+                mpr("steal.min 0")
+                mpr("steal.type DERIVE")
+                mpr("steal.info The time that a virtual CPU had runnable tasks, but the virtual CPU itself was not running")
+		return
+	}
+
+# Note: Counters/derive need to report integer values.  Also we need
+# to avoid 10e+09 and the like %.0f should do this.
+
+	while(getline <"/proc/stat") {
+		if(/^cpu /) {
+			printf "user.value %.0f\n", $2*100/hz	|& Service
+			printf "nice.value %.0f\n", $3*100/hz	|& Service
+			printf "system.value %.0f\n", $4*100/hz	|& Service
+			printf "idle.value %.0f\n", $5*100/hz	|& Service
+			printf "iowait.value %.0f\n", $6*100/hz	|& Service
+			printf "irq.value %.0f\n", $7*100/hz	|& Service
+			printf "softirq.value %.0f\n", $8*100/hz	|& Service
+			printf "steal.value %.0f\n", $9*100/hz	|& Service
+		}
+	}
+	close("/proc/stat")
 }
 
 function debug_input() {
@@ -51,8 +149,11 @@ function handle_command() {
 	} else if (/^config /) {
 		switch ($2) {
 			case "load":
-				 plugin_load("conf")
+				 plugin_load("config")
 				 break
+			case "cpu":
+				plugin_cpu("config")
+				break
 			default:
 				 mpr("# No such plugin")
 				 break
@@ -63,6 +164,9 @@ function handle_command() {
 			case "load":
 				 plugin_load()
 				 break
+			case "cpu":
+				plugin_cpu()
+				break
 			default:
 				mpr("# No such plugin")
 				break
