@@ -135,12 +135,6 @@ function debug_input() {
 }
 
 function handle_command() {
-	if (debug > 1) {
-		print "got: "$0
-		if (debug>3) {
-			debug_input()
-		}
-	}
 	if (/^quit/) {
 		mpr("# bye!")
 		return -1
@@ -203,6 +197,12 @@ BEGIN {
 		while ((Service |& getline)>0) {
 			# Clean the input first
 			gsub("[\r]*","")
+			if (debug > 1) {
+				print "got: "$0
+				if (debug>3) {
+					debug_input()
+				}
+			}
 			if (handle_command() <0)
 				break;
 		}
