@@ -1,6 +1,12 @@
+#!/usr/bin/gawk -f
+
 function mpr(content) {
+	if (debug>2) {
+		print "sending: " content
+	}
 	print content |& Service
 }
+
 function do_list() {
 	mpr("load")
 }
@@ -24,25 +30,54 @@ function load_average(args) {
 	}
 }
 
+function debug_input() {
+	for (i=0; i<=NF; i++) {
+		print "$" i "(length:" length($i) "): \"" $i "\"";
+	}
+}
 BEGIN {
-	Service = "/inet/tcp/4919/0/0";
+	# Configuration from commandline (-v port=foo)
+	if (port == "") {
+		port = "4919";
+	}
+	if (hostname == "") {
+		"uname -n" | getline hostname
+	}
+	if (domain == "") {
+		domain = ".awk"
+	}
+
+	Service = "/inet/tcp/" port "/0/0";
+	if (debug > 1) {
+		print "Listening socket: " Service
+	}
 	do {
-		mpr("# munin node at luke.awk")
+		mpr("# munin node at " hostname domain)
 		while ((Service |& getline)>0) {
-			print "got: "$0
+			gsub("[\r]*","");
+			if (debug > 1) {
+				print "got: "$0
+				if (debug>3) {
+					debug_input()
+				}
+			}
 			if (/^quit/) {
-				mpr("bye!");
+				mpr("# bye!");
 				break;
 			} else if (/^list/) {
 				do_list()
-			} else if (/^config load/) {
-				load_average("conf");
+			} else if (/^config /) {
+				if ($2 == "load")
+					load_average("conf");
 				mpr(".");
-			} else if (/^fetch load/) {
-				load_average();
+			} else if (/^fetch /) {
+				if ($2 == "load")
+					load_average();
 				mpr(".");
+			} else if (/^version/) {
+				mpr("munin node on " hostname domain " version: munin-node-awk")
 			} else {
-				mpr("#unknown command");
+				mpr("# unknown command");
 			}
 		};
 		close(Service);
