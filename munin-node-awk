@@ -60,7 +60,7 @@ function plugin_cpu(args) {
 
 		graphlimit = cpus * 100
 		mpr("graph_title CPU usage")
-		mpr("graph_order system user nice idle" $extinfo)
+		mpr("graph_order system user nice idle iowait irq softirq steal")
 		mpr("graph_args --base 1000 -r --lower-limit 0 --upper-limit " graphlimit)
 		mpr("graph_vlabel %")
 		mpr("graph_scale no")
