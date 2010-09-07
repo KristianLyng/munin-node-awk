@@ -15,18 +15,30 @@ Usage
 If you want it to run in the background, you'll have to figure it out
 yourself. (Ie: use normal UNIX-tricks).
 
-./munin-node-awk [-v hostname=yourhostname] [-v domain=yourdomain] [-v
-debug=integer] [-v port=tcpport]
+::
+	
+	./munin-node-awk [-v hostname=yourhostname] [-v domain=yourdomain] 
+		[-v debug=integer] [-v port=tcpport]
 
 All options are ... optional. The defaults are:
-hostname: uname -n
-domain: ".awk" (Since I still haven't added enough plugins to replace the
+
+hostname
+	uname -n
+
+domain
+	".awk" (Since I still haven't added enough plugins to replace the
         real munin-node on my system)
-debug: 0
-port: 4919 (NB: This is NOT the default munin port. This is for the same
-      reason as above: I run munin-node and munin-node-awk in parallel)
-cpus: calculated from /proc/stats and cached. Don't see the point in
-      over-riding it, but you're welcome.
+
+debug
+	0
+
+port
+	4919 (NB: This is NOT the default munin port. This is for the same
+	reason as above: I run munin-node and munin-node-awk in parallel)
+
+cpus
+	calculated from /proc/stats and cached. Don't see the point in
+	over-riding it, but you're welcome.
 
 Deviations from munin-node
 --------------------------
@@ -47,12 +59,13 @@ Ideas
 -----
 
 Some ideas I am testing: 
- - Caching and sharing of relevant variables (ie: number of cpus)
- - Virtually fork-free execution. There is some need for forking, but the
-   goal is to avoid forking for every query, which is what munin-node does.
- - "Wildcard" plugins can probably be expanded
- - Parallel connection to stuff like varnish to fetch statistics real time
-   without opening a file (not implemented, just and idea right now).
+
+- Caching and sharing of relevant variables (ie: number of cpus)
+- Virtually fork-free execution. There is some need for forking, but the
+  goal is to avoid forking for every query, which is what munin-node does.
+- "Wildcard" plugins can probably be expanded
+- Parallel connection to stuff like varnish to fetch statistics real time
+  without opening a file (not implemented, just and idea right now).
 
 This is thus far a prototype, and the one big missing thing I have is the
 lack of "dynamic" plugins. I have to manually add all plugins to the
