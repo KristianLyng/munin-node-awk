@@ -1,5 +1,27 @@
 #!/usr/bin/gawk -f
+# munin-node-awk
+# Copyright (C) 2010 Kristian Lyngstøl <kristian@bohemians.org>
+# Copyright (C) 2010 Varnish Software
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+#############################
+# Auxiliary functions       #
+#############################
+
+# Print to the client.
 function mpr(content) {
 	if (debug>2) {
 		print "sending: " content
@@ -7,22 +29,12 @@ function mpr(content) {
 	print content |& Service
 }
 
-function do_list() {
-	mpr("load cpu")
-}
-
+# Print the individual input-bits and length
+# (think control-character removal)
 function debug_input() {
 	for (i=0; i<=NF; i++) {
 		print "$" i "(length:" length($i) "): \"" $i "\""
 	}
-}
-
-function init_plugin() {
-	varnishstatbin = "/usr/local/bin/varnishstat -1 -n " hostname
-	varnishstat["dummyvalue"] = ""
-	varnishstathelp["dummyvalue"] = ""
-	varnishstat_tim = 0
-	args=""
 }
 
 # Calculate the number of CPUs and cache the result
@@ -43,6 +55,28 @@ function lib_get_cpus() {
 		print "CPUS calculated: " cpus
 	hz=100
 }
+
+#############################
+# Plugin helpers            #
+#############################
+
+# List plugins
+function do_list() {
+	mpr("load cpu")
+}
+
+# Initialize plugin variables
+function init_plugin() {
+	varnishstatbin = "/usr/local/bin/varnishstat -1 -n " hostname
+	varnishstat["dummyvalue"] = ""
+	varnishstathelp["dummyvalue"] = ""
+	varnishstat_tim = 0
+	args=""
+}
+
+#############################
+# Plugins                   #
+#############################
 
 function plugin_load(args) {
 	if (args == "config") {
@@ -193,6 +227,12 @@ function plugin_cpu(args) {
 	close("/proc/stat")
 }
 
+#############################
+# Execution core            #
+#############################
+
+# Handle a single command as received from a client. Input is already
+# normalized to some degree and possibly "debugged"
 function handle_command() {
 	if (/^quit/) {
 		mpr("# bye!")
@@ -238,6 +278,9 @@ function handle_command() {
 	}
 }
 
+
+# Outer event loop.
+# Init the whole thing and keep it running.
 BEGIN {
 	if (debug>0) {
 		LINT=1
