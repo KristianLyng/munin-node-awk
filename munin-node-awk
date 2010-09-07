@@ -240,32 +240,16 @@ function handle_command() {
 		return -1
 	} else if (/^list/) {
 		do_list()
-	} else if (/^config /) {
+	} else if (/^(config|fetch) /) {
 		switch ($2) {
 			case "load":
-				 plugin_load("config")
-				 break
+				plugin_load($1)
+				break
 			case "cpu":
-				plugin_cpu("config")
+				plugin_cpu($1)
 				break
 			case "varnish_req_rate":
-				plugin_varnish("config")
-				break
-			default:
-				 mpr("# No such plugin")
-				 break
-		}
-		mpr(".")
-	} else if (/^fetch /) {
-		switch ($2) {
-			case "load":
-				 plugin_load()
-				 break
-			case "cpu":
-				plugin_cpu()
-				break
-			case "varnish_req_rate":
-				plugin_varnish()
+				plugin_varnish($1)
 				break
 			default:
 				mpr("# No such plugin")
