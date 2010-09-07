@@ -11,23 +11,18 @@ function do_list() {
 	mpr("load cpu")
 }
 
-function plugin_load(args) {
-	if (args == "config") {
-		mpr("graph_title Load average")
-		mpr("graph_args --base 1000 -l 0")
-        	mpr("graph_vlabel load")
-		mpr("graph_scale no")
-		mpr("graph_category system")
-        	mpr("load.label load")
-        	mpr("graph_info The load average of the machine describes how many processes are in the run-queue (scheduled to run \"immediately\").")
-		mpr("load.info 5 minute load average")
-		return
-	} else {
-		getline <"/proc/loadavg"
-		mpr("load.value " $2)
-		close("/proc/loadavg")
-		return
+function debug_input() {
+	for (i=0; i<=NF; i++) {
+		print "$" i "(length:" length($i) "): \"" $i "\""
 	}
+}
+
+function init_plugin() {
+	varnishstatbin = "/usr/local/bin/varnishstat -1 -n " hostname
+	varnishstat["dummyvalue"] = ""
+	varnishstathelp["dummyvalue"] = ""
+	varnishstat_tim = 0
+	args=""
 }
 
 # Calculate the number of CPUs and cache the result
@@ -47,6 +42,74 @@ function lib_get_cpus() {
 	if (debug>0)
 		print "CPUS calculated: " cpus
 	hz=100
+}
+
+function plugin_load(args) {
+	if (args == "config") {
+		mpr("graph_title Load average")
+		mpr("graph_args --base 1000 -l 0")
+        	mpr("graph_vlabel load")
+		mpr("graph_scale no")
+		mpr("graph_category system")
+        	mpr("load.label load")
+        	mpr("graph_info The load average of the machine describes how many processes are in the run-queue (scheduled to run \"immediately\").")
+		mpr("load.info 5 minute load average")
+		return
+	} else {
+		getline <"/proc/loadavg"
+		mpr("load.value " $2)
+		close("/proc/loadavg")
+		return
+	}
+}
+
+function plugin_varnish_varnishstat() {
+	if (time - varnishstat_tim  < 5 && varnishstat["uptime"] != 0) {
+		if (debug > 5) {
+			print "varnishstat cache hit. time: " time " varnishtat_tim: " varnishstat_tim
+		}
+		return;
+	}
+	while (varnishstatbin | getline) {
+		varnishstat[$1] = $2
+		varnishstathelp[$1] = $4
+		for (i=5; i<NF; i++)
+			varnishstathelp[$1] = varnishstathelp[$1] " " $i
+	}
+	if (debug >10 ) {
+		for (a in varnishstat) {
+			print "varnishstat[" a "]: " varnishstat[a]
+		}
+	}
+	close (varnishstatbin)
+	varnishstat_tim = time
+}
+
+function plugin_varnish(args) {
+	if (debug>1) {
+		print "varnish plugin started"
+	}
+	plugin_varnish_varnishstat()
+	if (args == "config") {
+		mpr("graph_title Varnish Request Rate")
+		mpr("graph_category Varnish")
+		mpr("cache_hit.type derive")
+		mpr("cache_hit.label Cache Hits")
+		mpr("cache_miss.type derive")
+		mpr("cache_miss.label Cache Misses")
+		mpr("client_req.type derive")
+		mpr("client_req.label Client requests")
+		mpr("client_conn.type derive")
+		mpr("client_conn.label Client connections")
+		return
+	}
+	primary[0] = "cache_hit"
+	primary[1] = "cache_miss"
+	primary[2] = "client_req"
+	primary[3] = "client_conn"
+	for (i=0; i<4; i++) {
+		mpr(primary[i] ".value " varnishstat[primary[i]])
+	}
 }
 
 function plugin_cpu(args) {
@@ -110,8 +173,10 @@ function plugin_cpu(args) {
 		return
 	}
 
-# Note: Counters/derive need to report integer values.  Also we need
-# to avoid 10e+09 and the like %.0f should do this.
+	# Note: Counters/derive need to report integer values.  Also we need
+	# to avoid 10e+09 and the like %.0f should do this.
+	#
+	# FIXME: Use the proper gawk solution using CONVFMT
 
 	while(getline <"/proc/stat") {
 		if(/^cpu /) {
@@ -128,12 +193,6 @@ function plugin_cpu(args) {
 	close("/proc/stat")
 }
 
-function debug_input() {
-	for (i=0; i<=NF; i++) {
-		print "$" i "(length:" length($i) "): \"" $i "\""
-	}
-}
-
 function handle_command() {
 	if (/^quit/) {
 		mpr("# bye!")
@@ -148,6 +207,9 @@ function handle_command() {
 			case "cpu":
 				plugin_cpu("config")
 				break
+			case "varnish_req_rate":
+				plugin_varnish("config")
+				break
 			default:
 				 mpr("# No such plugin")
 				 break
@@ -160,6 +222,9 @@ function handle_command() {
 				 break
 			case "cpu":
 				plugin_cpu()
+				break
+			case "varnish_req_rate":
+				plugin_varnish()
 				break
 			default:
 				mpr("# No such plugin")
@@ -188,6 +253,7 @@ BEGIN {
 		domain = ".awk"
 	}
 
+	init_plugin()
 	Service = "/inet/tcp/" port "/0/0"
 	if (debug > 1) {
 		print "Listening socket: " Service
@@ -203,6 +269,7 @@ BEGIN {
 					debug_input()
 				}
 			}
+			time = systime()
 			if (handle_command() <0)
 				break;
 		}
