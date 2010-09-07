@@ -21,13 +21,19 @@
 # Auxiliary functions       #
 #############################
 
+# Debug: Print content if debug is level or higher.
+function d(level, content) {
+	if (level<=debug) {
+		print content
+	}
+}
+
 # Print to the client.
 function mpr(content) {
-	if (debug>2) {
-		print "sending: " content
-	}
+	d(3,"sent:     "content)
 	print content |& Service
 }
+
 
 # Print the individual input-bits and length
 # (think control-character removal)
@@ -40,8 +46,7 @@ function debug_input() {
 # Calculate the number of CPUs and cache the result
 function lib_get_cpus() {
 	if (cpus > 0) {
-		if (debug>0)
-			print "cpus cached!"
+		d(1,"cpus cached")
 		return;
 	}
 	cpus = 0	
@@ -51,8 +56,7 @@ function lib_get_cpus() {
 		}
 	}
 	close("/proc/stat")
-	if (debug>0)
-		print "CPUS calculated: " cpus
+	d(1, "CPUS calculated: " cpus)
 	hz=100
 }
 
@@ -62,10 +66,10 @@ function lib_get_cpus() {
 
 # List plugins
 function do_list() {
-	mpr("load cpu")
+	mpr("load cpu varnish_req_rate")
 }
 
-# Initialize plugin variables
+# Initialize plugin variables. Executed once.
 function init_plugin() {
 	varnishstatbin = "/usr/local/bin/varnishstat -1 -n " hostname
 	varnishstat["dummyvalue"] = ""
@@ -99,9 +103,7 @@ function plugin_load(args) {
 
 function plugin_varnish_varnishstat() {
 	if (time - varnishstat_tim  < 5 && varnishstat["uptime"] != 0) {
-		if (debug > 5) {
-			print "varnishstat cache hit. time: " time " varnishtat_tim: " varnishstat_tim
-		}
+		d(5, "varnishstat cache hit. time: " time " varnishtat_tim: " varnishstat_tim)
 		return;
 	}
 	while (varnishstatbin | getline) {
@@ -120,9 +122,8 @@ function plugin_varnish_varnishstat() {
 }
 
 function plugin_varnish(args) {
-	if (debug>1) {
-		print "varnish plugin started"
-	}
+	d(2,"varnish plugin started")
+
 	plugin_varnish_varnishstat()
 	if (args == "config") {
 		mpr("graph_title Varnish Request Rate")
@@ -298,19 +299,15 @@ BEGIN {
 
 	init_plugin()
 	Service = "/inet/tcp/" port "/0/0"
-	if (debug > 1) {
-		print "Listening socket: " Service
-	}
+	d(1,"Listening socket: " Service)
 	do {
 		mpr("# munin node at " hostname domain)
 		while ((Service |& getline)>0) {
 			# Clean the input first
 			gsub("[\r]*","")
-			if (debug > 1) {
-				print "got: "$0
-				if (debug>3) {
-					debug_input()
-				}
+			d(2,"received: " $0)
+			if (debug>8) {
+				debug_input()
 			}
 			time = systime()
 			if (handle_command() <0)
