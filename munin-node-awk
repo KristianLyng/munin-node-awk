@@ -128,13 +128,13 @@ function plugin_varnish(args) {
 	if (args == "config") {
 		mpr("graph_title Varnish Request Rate")
 		mpr("graph_category Varnish")
-		mpr("cache_hit.type derive")
+		mpr("cache_hit.type DERIVE")
 		mpr("cache_hit.label Cache Hits")
-		mpr("cache_miss.type derive")
+		mpr("cache_miss.type DERIVE")
 		mpr("cache_miss.label Cache Misses")
-		mpr("client_req.type derive")
+		mpr("client_req.type DERIVE")
 		mpr("client_req.label Client requests")
-		mpr("client_conn.type derive")
+		mpr("client_conn.type DERIVE")
 		mpr("client_conn.label Client connections")
 		return
 	}
